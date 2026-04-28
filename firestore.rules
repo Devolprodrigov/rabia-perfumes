@@ -1,0 +1,114 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: products
+// Document ID: auto-generated
+// Fields:
+//   - name: string (required) - Name of the perfume
+//   - description: string (optional) - Detailed description
+//   - price: number (required, positive) - Price in BRL
+//   - category: string (required) - Category name
+//   - stock: number (required, non-negative) - Current stock level
+//   - imageUrl: string (required, URL) - URL of the product image
+//   - createdAt: timestamp (required) - Creation time
+//
+// Collection: categories
+// Document ID: auto-generated
+// Fields:
+//   - name: string (required) - Category name
+//   - description: string (optional) - Category description
+//
+// Collection: orders
+// Document ID: auto-generated
+// Fields:
+//   - customerName: string (required) - Customer name
+//   - customerPhone: string (required) - Customer phone
+//   - items: list (required) - List of items (name, price, quantity)
+//   - total: number (required, positive) - Total order value
+//   - status: string (required, enum: ['pending', 'completed', 'cancelled'])
+//   - createdAt: timestamp (required) - Order time
+//
+// Collection: users
+// Document ID: uid
+// Fields:
+//   - role: string (required, enum: ['admin', 'customer'])
+//   - email: string (required)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "tstrodrigovieira@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'price', 'stock', 'imageUrl', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.price is number && data.price > 0 &&
+             data.stock is number && data.stock >= 0 &&
+             data.imageUrl is string && data.imageUrl.matches("^https?://.*") &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['customerName', 'customerPhone', 'items', 'total', 'status', 'createdAt']) &&
+             data.customerName is string && data.customerName.size() > 0 && data.customerName.size() < 100 &&
+             data.customerPhone is string && data.customerPhone.size() > 0 &&
+             data.items is list &&
+             data.total is number && data.total > 0 &&
+             data.status in ['pending', 'completed', 'cancelled'] &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /products/{productId} {
+      allow read: if true; // Public catalog
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        // Allow public to decrement stock during checkout
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']) &&
+        request.resource.data.stock is number &&
+        request.resource.data.stock < resource.data.stock &&
+        request.resource.data.stock >= 0
+      );
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin();
+      allow create: if isValidOrder(request.resource.data); // Customers can create orders
+      allow update, delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == userId && request.resource.data.role == 'customer';
+      allow update: if isAdmin();
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}
