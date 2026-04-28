@@ -4,7 +4,7 @@ import {
   GoogleAuthProvider, 
   signInWithPopup, 
   signOut, 
-  signInWithEmailAndPassword // <-- IMPORTAÇÃO NECESSÁRIA
+  signInWithEmailAndPassword 
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -28,11 +28,10 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// EXPORTAÇÕES PARA O APP.TSX
 export { 
   signInWithPopup, 
   signOut, 
-  signInWithEmailAndPassword, // <-- EXPORTAÇÃO QUE FALTAVA
+  signInWithEmailAndPassword, 
   collection, 
   doc, 
   setDoc, 
@@ -58,5 +57,4 @@ export enum OperationType {
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   console.error('Firestore Error: ', error);
-  throw new Error('Erro na operação de banco de dados');
 }
