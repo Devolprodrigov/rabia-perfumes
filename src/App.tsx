@@ -104,60 +104,34 @@ const Navbar = ({ cartCount, user, isAdmin }: { cartCount: number, user: any, is
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const handleAdminLogin = async () => {
-    try {
-      await signInWithEmailAndPassword(auth, 'rodrigovieiradev@outlook.com', '123456');
-      toast.success('Acesso administrativo concedido!');
-    } catch (error) {
-      toast.error('Erro ao acessar como admin.');
-    }
-  };
-
-  return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-black/90 backdrop-blur-md py-3 border-b border-gold/20 shadow-lg shadow-gold/5' : 'bg-transparent py-6'}`}>
-      <div className="container mx-auto px-6 flex justify-between items-center">
-        <Link to="/" className="flex items-center gap-2">
-          <span className="text-2xl font-serif font-bold tracking-tighter text-gold-gradient">RÁBIA PARFUM</span>
-        </Link>
-        
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium uppercase tracking-widest text-stone-400">
-          <Link to="/" className="hover:text-gold transition-colors">Catálogo</Link>
-          <Link to="/about" className="hover:text-gold transition-colors">Sobre</Link>
-          {isAdmin && <Link to="/admin" className="hover:text-gold transition-colors text-gold-light font-bold">Admin</Link>}
-        </div>
-
-        <div className="flex items-center gap-4">
-          <Link to="/cart" className="relative p-2 text-gold hover:bg-white/5 rounded-full transition-colors">
-            <ShoppingCart size={20} />
-            {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-gold-gradient text-black text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-black">
-                {cartCount}
-              </span>
-            )}
-          </Link>
+    const unsubscribeAuth = auth.onAuthStateChanged(async (u) => {
+      setUser(u);
+      if (u) {
+        try {
+          // BUSCA DIRETA: Pega o documento que tem o ID igual ao UID do usuário
+          const { getDoc } = await import('firebase/firestore'); // Garante a importação
+          const userRef = doc(db, 'users', u.uid);
+          const userSnap = await getDoc(userRef);
           
-          {user ? (
-            <div className="flex items-center gap-3">
-              <img src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt="" className="w-8 h-8 rounded-full border border-gold/30" />
-              <Button variant="ghost" size="sm" onClick={() => signOut(auth)} className="hidden sm:flex text-xs uppercase tracking-widest text-stone-400 hover:text-gold hover:bg-transparent">Sair</Button>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => signInWithPopup(auth, googleProvider)} className="text-xs uppercase tracking-widest border-gold/50 text-gold hover:bg-gold hover:text-black transition-all">Google</Button>
-              <Button variant="ghost" size="sm" onClick={handleAdminLogin} className="text-xs uppercase tracking-widest text-stone-500 hover:text-gold">Admin</Button>
-            </div>
-          )}
-        </div>
-      </div>
-    </nav>
-  );
-};
+          const isDbAdmin = userSnap.exists() && userSnap.data().role === 'admin';
+          
+          // Libera se estiver no banco OU se for um dos e-mails mestres
+          setIsAdmin(
+            isDbAdmin || 
+            u.email === 'tstrodrigovieira@gmail.com' || 
+            u.email === 'rodrigovieiradev@outlook.com' ||
+            u.email === 'faculdadesabrina2025@gmail.com' // Adicionei este também
+          );
+        } catch (error) {
+          console.error("Erro ao verificar admin:", error);
+          setIsAdmin(u.email === 'tstrodrigovieira@gmail.com' || u.email === 'rodrigovieiradev@outlook.com');
+        }
+      } else {
+        setIsAdmin(false);
+      }
+    });
 
+    // ... mantenha o restante dos onSnapshot (products, categories, orders)
 const ProductCard = ({ product, onAddToCart }: { product: Product, onAddToCart: (p: Product) => void }) => {
   return (
     <motion.div 
