@@ -17,8 +17,8 @@ import {
  Search,
  Filter,
  ShoppingCart,
- CheckCircle2,
- AlertCircle,
+ CheckCircle2, 
+ AlertCircle, 
  ArrowRight,
  Instagram,
  Facebook,
@@ -148,7 +148,8 @@ const ProductCard = ({ product, onAddToCart }: { product: Product, onAddToCart: 
      initial={{ opacity: 0, y: 20 }}
      animate={{ opacity: 1, y: 0 }}
      exit={{ opacity: 0, scale: 0.9 }}
-     className="group"
+     className="group cursor-pointer"
+     onClick={() => product.stock > 0 && onAddToCart(product)}
    >
      <Card className="border-none shadow-none bg-transparent overflow-hidden">
        <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-stone-900 border border-white/5">
@@ -159,13 +160,14 @@ const ProductCard = ({ product, onAddToCart }: { product: Product, onAddToCart: 
            referrerPolicy="no-referrer"
          />
          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-300" />
-         <div className="absolute bottom-4 left-4 right-4 translate-y-12 group-hover:translate-y-0 transition-transform duration-300">
+         
+         {/* Botão ajustado para ficar visível em dispositivos móveis e deslizar no desktop */}
+         <div className="absolute bottom-4 left-4 right-4 translate-y-0 md:translate-y-12 md:group-hover:translate-y-0 transition-transform duration-300">
            <Button 
-             onClick={() => onAddToCart(product)} 
              className="w-full bg-gold-gradient text-black hover:scale-[1.02] border-none rounded-xl shadow-lg font-bold text-xs uppercase tracking-wider"
              disabled={product.stock <= 0}
            >
-             {product.stock > 0 ? 'Comprar esse aqui' : 'Esgotado'}
+             {product.stock > 0 ? 'Adicionar ao Carrinho' : 'Esgotado'}
            </Button>
          </div>
        </div>
@@ -612,7 +614,6 @@ const AdminPanel = ({ products, orders }: { products: Product[], orders: Order[]
              <Input placeholder="Estoque" type="number" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} className="bg-white/5 border-white/10" />
            </div>
            
-           {/* SELEÇÃO DE CATEGORIA */}
            <Select value={formData.category} onValueChange={(val) => setFormData({...formData, category: val})}>
              <SelectTrigger className="bg-white/5 border-white/10 text-stone-300">
                <SelectValue placeholder="Selecione a Categoria" />
@@ -633,7 +634,7 @@ const AdminPanel = ({ products, orders }: { products: Product[], orders: Order[]
      </Dialog>
 
      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-       <DialogContent className="bg-stone-900 border-gold/20 text-white"><DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle></DialogHeader><DialogFooter><Button onClick={confirmDeleteProduct} className="bg-red-600">Excluir</Button></DialogFooter></DialogContent>
+       <DialogContent className="bg-stone-900 border-gold/20 text-white"><DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle></DialogHeader><DialogFooter><Button onClick={async () => { if(productToDelete) await deleteDoc(doc(db, 'products', productToDelete)); setIsDeleteModalOpen(false); }} className="bg-red-600">Excluir</Button></DialogFooter></DialogContent>
      </Dialog>
    </div>
  );
@@ -645,17 +646,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
  state = { hasError: false, errorInfo: '' };
  static getDerivedStateFromError(error: any) { return { hasError: true, errorInfo: error.message }; }
  render() {
-   if (this.state.hasError) {
-     return (
-       <div className="min-h-screen flex items-center justify-center bg-stone-50 p-6">
-         <Card className="max-w-md w-full rounded-3xl p-8 text-center">
-           <AlertCircle className="mx-auto text-red-500 mb-4" size={48} />
-           <h2 className="text-2xl font-serif font-bold mb-4">Ops! Algo deu errado</h2>
-           <Button onClick={() => window.location.reload()} className="w-full bg-stone-900 text-white rounded-xl">Recarregar</Button>
-         </Card>
-       </div>
-     );
-   }
+   if (this.state.hasError) return <div className="min-h-screen flex items-center justify-center bg-stone-50 p-6"><Card className="max-w-md w-full rounded-3xl p-8 text-center"><AlertCircle className="mx-auto text-red-500 mb-4" size={48} /><h2 className="text-2xl font-serif font-bold mb-4">Ops! Algo deu errado</h2><Button onClick={() => window.location.reload()} className="w-full bg-stone-900 text-white rounded-xl">Recarregar</Button></Card></div>;
    return (this as any).props.children;
  }
 }
@@ -665,9 +656,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 export default function App() {
  return (
    <ErrorBoundary>
-     <Router>
-       <AppContent />
-     </Router>
+     <Router><AppContent /></Router>
    </ErrorBoundary>
  );
 }
