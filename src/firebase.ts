@@ -19,7 +19,8 @@ import {
   orderBy, 
   onSnapshot, 
   getDocs, 
-  Timestamp 
+  Timestamp,
+  increment // <-- ADICIONADO AQUI
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -43,7 +44,8 @@ export {
   orderBy, 
   onSnapshot, 
   getDocs, 
-  Timestamp 
+  Timestamp,
+  increment // <-- ADICIONADO AQUI TAMBÉM
 };
 
 export enum OperationType {
