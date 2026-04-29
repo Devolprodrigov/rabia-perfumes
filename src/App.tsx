@@ -24,7 +24,8 @@ import {
  Facebook,
  MessageCircle,
  Upload,
- Camera
+ Camera,
+ ClipboardList // ACRESCENTADO
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
@@ -87,6 +88,7 @@ interface Order {
  id: string;
  customerName: string;
  customerPhone: string;
+ customerEmail?: string; // ACRESCENTADO
  items: OrderItem[];
  total: number;
  status: 'pending' | 'completed' | 'cancelled';
@@ -114,6 +116,7 @@ const Navbar = ({ cartCount, user, isAdmin }: { cartCount: number, user: any, is
        <div className="hidden md:flex items-center gap-8 text-sm font-medium uppercase tracking-widest text-stone-400">
          <Link to="/" className="hover:text-gold transition-colors">Catálogo</Link>
          <Link to="/about" className="hover:text-gold transition-colors">Sobre</Link>
+         {user && <Link to="/my-orders" className="hover:text-gold transition-colors">Meus Pedidos</Link>} {/* ACRESCENTADO */}
          {isAdmin && <Link to="/admin" className="hover:text-gold transition-colors text-gold-light">Admin</Link>}
        </div>
 
@@ -141,6 +144,51 @@ const Navbar = ({ cartCount, user, isAdmin }: { cartCount: number, user: any, is
  );
 };
 
+// COMPONENTE NOVO ACRESCENTADO
+const UserOrders = ({ orders, user }: { orders: Order[], user: any }) => {
+  const myOrders = orders.filter(o => o.customerEmail === user?.email);
+  return (
+    <div className="pt-32 pb-20 container mx-auto px-6 max-w-4xl">
+      <h1 className="text-4xl font-serif font-bold text-gold-gradient mb-12 text-center uppercase tracking-tighter">Meus Pedidos</h1>
+      {!user ? (
+        <div className="text-center py-20 bg-stone-900/40 rounded-3xl border border-gold/10">
+          <p className="text-stone-400 mb-6">Faça login para ver seu histórico.</p>
+          <Button onClick={() => signInWithPopup(auth, googleProvider)} className="bg-gold-gradient text-black font-bold">Entrar com Google</Button>
+        </div>
+      ) : myOrders.length === 0 ? (
+        <div className="text-center py-20 bg-stone-900/40 rounded-3xl border border-gold/10">
+          <ClipboardList className="mx-auto text-gold/10 mb-6" size={64} />
+          <p className="text-stone-400">Nenhum pedido encontrado.</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {myOrders.map(order => (
+            <Card key={order.id} className="bg-stone-900/60 border-white/5 overflow-hidden">
+              <CardHeader className="border-b border-white/5 flex flex-row justify-between items-center">
+                <div>
+                  <p className="text-[10px] text-stone-500 uppercase">Pedido em {order.createdAt?.toDate().toLocaleDateString()}</p>
+                  <CardTitle className="text-gold text-lg">Total: R$ {order.total.toFixed(2)}</CardTitle>
+                </div>
+                <Badge className={order.status === 'pending' ? 'bg-gold/10 text-gold border-gold/20' : 'bg-green-900/20 text-green-400'}>
+                  {order.status === 'pending' ? 'Pendente' : 'Concluído'}
+                </Badge>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {order.items.map((item, idx) => (
+                  <div key={idx} className="text-sm text-stone-300 flex justify-between mb-1">
+                    <span>{item.quantity}x {item.name}</span>
+                    <span>R$ {item.price.toFixed(2)}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ProductCard = ({ product, onAddToCart }: { product: Product, onAddToCart: (p: Product) => void }) => {
  return (
    <motion.div 
@@ -164,7 +212,7 @@ const ProductCard = ({ product, onAddToCart }: { product: Product, onAddToCart: 
          {/* Botão ajustado para ficar visível em dispositivos móveis e deslizar no desktop */}
          <div className="absolute bottom-4 left-4 right-4 translate-y-0 md:translate-y-12 md:group-hover:translate-y-0 transition-transform duration-300">
            <Button 
-             className="w-full bg-gold-gradient text-black hover:scale-[1.02] border-none rounded-xl shadow-lg font-bold text-xs uppercase tracking-wider"
+             className="w-full bg-gold-gradient text-black hover:scale-[1.02] border-none rounded-xl shadow-lg font-bold text-xs uppercase tracking-wider h-12"
              disabled={product.stock <= 0}
            >
              {product.stock > 0 ? 'Adicionar ao Carrinho' : 'Esgotado'}
@@ -450,6 +498,7 @@ const AdminPanel = ({ products, orders }: { products: Product[], orders: Order[]
  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
  const [productToDelete, setProductToDelete] = useState<string | null>(null);
  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+ const categories = ['Árabe', 'Importados', 'Nacionais', 'Exclusivos'];
  const [formData, setFormData] = useState({
    name: '',
    description: '',
@@ -460,7 +509,7 @@ const AdminPanel = ({ products, orders }: { products: Product[], orders: Order[]
  });
 
  // Categorias para o formulário
- const categories = ['Árabe', 'Importados', 'Nacionais', 'Exclusivos'];
+ // const categories = ['Árabe', 'Importados', 'Nacionais', 'Exclusivos']; // REMOVIDO POR DUPLICAÇÃO
 
  const handleOpenProductModal = (product?: Product) => {
    if (product) {
@@ -614,6 +663,7 @@ const AdminPanel = ({ products, orders }: { products: Product[], orders: Order[]
              <Input placeholder="Estoque" type="number" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} className="bg-white/5 border-white/10" />
            </div>
            
+           {/* SELEÇÃO DE CATEGORIA */}
            <Select value={formData.category} onValueChange={(val) => setFormData({...formData, category: val})}>
              <SelectTrigger className="bg-white/5 border-white/10 text-stone-300">
                <SelectValue placeholder="Selecione a Categoria" />
@@ -634,7 +684,7 @@ const AdminPanel = ({ products, orders }: { products: Product[], orders: Order[]
      </Dialog>
 
      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-       <DialogContent className="bg-stone-900 border-gold/20 text-white"><DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle></DialogHeader><DialogFooter><Button onClick={async () => { if(productToDelete) await deleteDoc(doc(db, 'products', productToDelete)); setIsDeleteModalOpen(false); }} className="bg-red-600">Excluir</Button></DialogFooter></DialogContent>
+       <DialogContent className="bg-stone-900 border-gold/20 text-white"><DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle></DialogHeader><DialogFooter><Button onClick={confirmDeleteProduct} className="bg-red-600">Excluir</Button></DialogFooter></DialogContent>
      </Dialog>
    </div>
  );
@@ -651,15 +701,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
  }
 }
 
-// --- Main App ---
-
-export default function App() {
- return (
-   <ErrorBoundary>
-     <Router><AppContent /></Router>
-   </ErrorBoundary>
- );
-}
+// --- Main App Logic ---
 
 function AppContent() {
  const [user, setUser] = useState<any>(null);
@@ -678,14 +720,8 @@ function AppContent() {
      }
    });
 
-   onSnapshot(query(collection(db, 'products'), orderBy('createdAt', 'desc')), (snapshot) => {
-     setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
-   });
-
-   onSnapshot(query(collection(db, 'orders'), orderBy('createdAt', 'desc')), (snapshot) => {
-     setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order)));
-   });
-
+   onSnapshot(query(collection(db, 'products'), orderBy('createdAt', 'desc')), (snapshot) => setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))));
+   onSnapshot(query(collection(db, 'orders'), orderBy('createdAt', 'desc')), (snapshot) => setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order))));
    return () => unsubscribeAuth();
  }, []);
 
@@ -715,9 +751,23 @@ function AppContent() {
  };
 
  const handleCheckout = async (customerName: string, customerPhone: string) => {
+   if (!user) { // ACRESCENTADO: OBRIGA LOGIN
+     toast.error('Por favor, faça login para finalizar o pedido.');
+     signInWithPopup(auth, googleProvider);
+     return;
+   }
    const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
    try {
-     await addDoc(collection(db, 'orders'), { customerName, customerPhone, items: cart, total, status: 'pending', createdAt: Timestamp.now() });
+     // ACRESCENTADO: SALVA EMAIL DO CLIENTE
+     await addDoc(collection(db, 'orders'), { 
+       customerName, 
+       customerPhone, 
+       customerEmail: user.email, 
+       items: cart, 
+       total, 
+       status: 'pending', 
+       createdAt: Timestamp.now() 
+     });
 
      for (const item of cart) {
        await updateDoc(doc(db, 'products', item.id), {
@@ -742,8 +792,9 @@ function AppContent() {
        <main>
          <Routes>
            <Route path="/" element={<Catalog products={products} onAddToCart={addToCart} />} />
-           <Route path="/cart" element={<Cart cart={cart} onRemove={id => setCart(prev => prev.filter(i => i.id !== id))} onUpdateQty={updateCartQty} onCheckout={handleCheckout} />} />
+           <Route path="/cart" element={<CardContent><Cart cart={cart} onRemove={id => setCart(prev => prev.filter(i => i.id !== id))} onUpdateQty={updateCartQty} onCheckout={handleCheckout} /></CardContent>} />
            <Route path="/admin" element={isAdmin ? <AdminPanel products={products} orders={orders} /> : <Catalog products={products} onAddToCart={addToCart} />} />
+           <Route path="/my-orders" element={<UserOrders orders={orders} user={user} />} /> {/* ACRESCENTADO */}
            <Route path="/about" element={
              <div className="pt-32 pb-20 container mx-auto px-6 max-w-3xl text-center">
                <h1 className="text-5xl font-serif font-bold mb-8 text-gold-gradient tracking-tighter">Nossa Essência</h1>
@@ -798,5 +849,13 @@ function AppContent() {
        </footer>
        <Toaster position="bottom-right" />
      </div>
+ );
+}
+
+export default function App() {
+ return (
+   <ErrorBoundary>
+     <Router><AppContent /></Router>
+   </ErrorBoundary>
  );
 }
