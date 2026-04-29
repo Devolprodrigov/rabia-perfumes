@@ -40,7 +40,7 @@ import {
   OperationType,
   handleFirestoreError,
   signInWithEmailAndPassword,
-  increment
+  increment // Importante para o estoque
 } from './firebase';
 
 import { Button } from '@/components/ui/button';
@@ -94,36 +94,42 @@ const Navbar = ({ cartCount, user, isAdmin }: any) => {
   );
 };
 
-// --- Admin Panel com Upload de Galeria ---
+// --- Admin Panel ---
 const AdminPanel = ({ products, orders }: any) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ name: '', description: '', price: '', category: '', stock: '', imageUrl: '' });
 
-  // FUNÇÃO PARA LER ARQUIVO DA GALERIA
+  // FUNÇÃO PARA PUXAR DA GALERIA
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) { // Limite de 1MB para não travar o banco
-        toast.error('A imagem deve ter menos de 1MB.');
+      if (file.size > 1024 * 1024) { 
+        toast.error('Imagem muito grande! Use fotos com menos de 1MB.');
         return;
       }
       const reader = new FileReader();
       reader.onloadend = () => {
-        setForm({ ...form, imageUrl: reader.result as string }); // Salva a imagem como texto Base64
+        setForm({ ...form, imageUrl: reader.result as string });
       };
       reader.readAsDataURL(file);
     }
   };
 
   const save = async () => {
-    const data = { ...form, price: parseFloat(form.price), stock: parseInt(form.stock), createdAt: editing ? editing.createdAt : Timestamp.now() };
+    if (!form.imageUrl) return toast.error("Selecione uma imagem");
+    const data = { 
+      ...form, 
+      price: parseFloat(form.price), 
+      stock: parseInt(form.stock), 
+      createdAt: editing ? editing.createdAt : Timestamp.now() 
+    };
     try {
       if (editing) await updateDoc(doc(db, 'products', editing.id), data);
       else await addDoc(collection(db, 'products'), data);
       setIsModalOpen(false);
-      toast.success('Produto salvo com sucesso!');
-    } catch { toast.error('Erro ao salvar produto.'); }
+      toast.success('Produto salvo!');
+    } catch { toast.error('Erro ao salvar.'); }
   };
 
   return (
@@ -147,10 +153,10 @@ const AdminPanel = ({ products, orders }: any) => {
                   <TableRow key={p.id} className="border-white/5">
                     <TableCell className="font-bold text-stone-200">{p.name}</TableCell>
                     <TableCell>R$ {p.price.toFixed(2)}</TableCell>
-                    <TableCell className={p.stock <= 5 ? "text-red-400 font-bold" : "text-stone-300"}>{p.stock} un</TableCell>
+                    <TableCell className={p.stock <= 3 ? "text-red-400 font-bold" : "text-stone-300"}>{p.stock} un</TableCell>
                     <TableCell className="text-right flex justify-end gap-2">
                       <Button variant="ghost" size="icon" onClick={() => { setEditing(p); setForm({ ...p, price: p.price.toString(), stock: p.stock.toString() }); setIsModalOpen(true); }} className="text-gold"><Edit size={16} /></Button>
-                      <Button variant="ghost" size="icon" onClick={async () => { if(confirm('Excluir?')) await deleteDoc(doc(db, 'products', p.id)) }} className="text-red-500"><Trash2 size={16} /></Button>
+                      <Button variant="ghost" size="icon" onClick={async () => { if(confirm('Excluir produto?')) await deleteDoc(doc(db, 'products', p.id)) }} className="text-red-500"><Trash2 size={16} /></Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -159,40 +165,41 @@ const AdminPanel = ({ products, orders }: any) => {
           </Card>
         </TabsContent>
         <TabsContent value="sales">
-          <div className="space-y-4">
-            {orders.map((o: any) => (
-              <div key={o.id} className="p-4 bg-stone-900/60 rounded-xl border border-white/5 flex justify-between">
-                <div><p className="font-bold text-gold">{o.customerName}</p><p className="text-xs text-stone-500">{o.customerPhone}</p></div>
-                <p className="font-bold">R$ {o.total.toFixed(2)}</p>
-              </div>
-            ))}
-          </div>
+           <div className="space-y-4">
+             {orders.map((o:any) => (
+               <div key={o.id} className="p-4 bg-stone-900/40 border border-white/5 rounded-xl flex justify-between items-center">
+                 <div>
+                   <p className="font-bold text-stone-100">{o.customerName}</p>
+                   <p className="text-xs text-stone-500">{o.items.length} itens no pedido</p>
+                 </div>
+                 <p className="text-gold font-bold">R$ {o.total.toFixed(2)}</p>
+               </div>
+             ))}
+           </div>
         </TabsContent>
       </Tabs>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="bg-stone-900 border-gold/20 text-white rounded-3xl sm:max-w-lg">
-          <DialogHeader><DialogTitle className="text-gold text-2xl font-serif">{editing ? 'Editar' : 'Novo'} Perfume</DialogTitle></DialogHeader>
+        <DialogContent className="bg-stone-900 border-gold/20 text-white rounded-3xl sm:max-w-md">
+          <DialogHeader><DialogTitle className="text-gold">{editing ? 'Editar' : 'Novo'} Perfume</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Nome</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="bg-white/5 border-white/10" /></div>
-              <div className="space-y-2"><Label>Preço</Label><Input type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})} className="bg-white/5 border-white/10" /></div>
-            </div>
-            
             <div className="space-y-2">
-              <Label>Foto do Produto (Galeria)</Label>
-              <div className="flex gap-4 items-center">
-                {form.imageUrl && <img src={form.imageUrl} className="w-16 h-16 rounded-lg object-cover border border-gold/50" alt="" />}
-                <label className="flex-1 flex flex-col items-center justify-center h-20 border-2 border-dashed border-gold/20 rounded-xl hover:bg-gold/5 cursor-pointer transition-colors">
-                  <Upload size={20} className="text-gold/50 mb-1" />
-                  <span className="text-xs text-stone-400">Clique para selecionar foto</span>
+              <Label>Foto do Produto</Label>
+              <div className="flex flex-col items-center gap-4">
+                {form.imageUrl && <img src={form.imageUrl} className="w-24 h-24 object-cover rounded-xl border border-gold/50" />}
+                <label className="w-full flex flex-col items-center justify-center h-24 border-2 border-dashed border-gold/20 rounded-2xl hover:bg-gold/5 cursor-pointer transition-colors">
+                  <Upload size={24} className="text-gold/50 mb-2" />
+                  <span className="text-xs text-stone-400">Clique para abrir galeria</span>
                   <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                 </label>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Estoque</Label><Input type="number" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} className="bg-white/5 border-white/10" /></div>
+              <div className="space-y-2"><Label>Nome</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="bg-white/5 border-white/10" /></div>
+              <div className="space-y-2"><Label>Preço</Label><Input type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})} className="bg-white/5 border-white/10" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Estoque Inicial</Label><Input type="number" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} className="bg-white/5 border-white/10" /></div>
               <div className="space-y-2"><Label>Categoria</Label><Input value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="bg-white/5 border-white/10" /></div>
             </div>
             <div className="space-y-2"><Label>Descrição</Label><Textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="bg-white/5 border-white/10" /></div>
@@ -227,13 +234,22 @@ export default function App() {
   const handleCheckout = async (name: string, phone: string) => {
     const total = cart.reduce((acc, i) => acc + i.price * i.quantity, 0);
     try {
+      // 1. Registrar Pedido
       await addDoc(collection(db, 'orders'), { customerName: name, customerPhone: phone, items: cart, total, status: 'pending', createdAt: Timestamp.now() });
-      for (const item of cart) { await updateDoc(doc(db, 'products', item.id), { stock: increment(-item.quantity) }); }
-      const msg = `Olá! Pedido Rábia Parfum:%0A*Nome:* ${name}%0A*Total:* R$ ${total.toFixed(2)}`;
+      
+      // 2. BAIXA AUTOMÁTICA DE ESTOQUE
+      for (const item of cart) {
+        const productRef = doc(db, 'products', item.id);
+        await updateDoc(productRef, {
+          stock: increment(-item.quantity) // Subtrai a quantidade vendida
+        });
+      }
+
+      const msg = `Olá! Pedido Rábia Parfum:%0A*Nome:* ${name}%0A*Itens:* ${cart.length}%0A*Total:* R$ ${total.toFixed(2)}`;
       window.open(`https://wa.me/5541984842112?text=${msg}`, '_blank');
       setCart([]);
-      toast.success('Pedido enviado e estoque atualizado!');
-    } catch { toast.error('Erro ao processar venda.'); }
+      toast.success('Pedido finalizado e estoque atualizado!');
+    } catch { toast.error('Erro ao processar.'); }
   };
 
   return (
@@ -242,9 +258,13 @@ export default function App() {
         <Navbar cartCount={cart.reduce((a, b) => a + b.quantity, 0)} user={user} isAdmin={isAdmin} />
         <main>
           <Routes>
-            <Route path="/" element={<CatalogPage products={products} onAddToCart={(p: any) => { if(p.stock <= 0) return toast.error('Esgotado'); setCart([...cart, {...p, quantity: 1}]); toast.success('Adicionado!'); }} />} />
+            <Route path="/" element={<CatalogPage products={products} onAddToCart={(p: any) => { 
+              if(p.stock <= 0) return toast.error('Produto esgotado!');
+              setCart([...cart, {...p, quantity: 1}]); 
+              toast.success('Adicionado ao carrinho!'); 
+            }} />} />
             <Route path="/cart" element={<CartPage cart={cart} setCart={setCart} onCheckout={handleCheckout} />} />
-            <Route path="/admin" element={isAdmin ? <AdminPanel products={products} orders={orders} /> : <div className="pt-40 text-center">Restrito</div>} />
+            <Route path="/admin" element={isAdmin ? <AdminPanel products={products} orders={orders} /> : <div className="pt-40 text-center text-stone-500">Acesso Restrito</div>} />
           </Routes>
         </main>
         <Toaster position="bottom-right" richColors />
@@ -253,16 +273,27 @@ export default function App() {
   );
 }
 
-// --- Páginas Menores ---
 const CatalogPage = ({ products, onAddToCart }: any) => (
-  <div className="pt-32 container mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+  <div className="pt-32 container mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 pb-20">
     {products.map((p: any) => (
       <Card key={p.id} className="bg-stone-900 border-white/5 overflow-hidden group">
-        <div className="h-72 overflow-hidden relative">
-          <img src={p.imageUrl} className="w-full h-full object-cover transition-transform group-hover:scale-105" alt="" />
-          <Button onClick={() => onAddToCart(p)} className="absolute bottom-4 left-4 right-4 bg-gold text-black font-bold rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">Comprar</Button>
+        <div className="h-80 overflow-hidden relative">
+          <img src={p.imageUrl} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+             <Button onClick={() => onAddToCart(p)} className="bg-gold text-black font-bold rounded-xl" disabled={p.stock <= 0}>
+               {p.stock > 0 ? 'Comprar Agora' : 'Esgotado'}
+             </Button>
+          </div>
         </div>
-        <CardHeader><CardTitle className="text-white">{p.name}</CardTitle><p className="text-gold font-bold">R$ {p.price.toFixed(2)}</p><p className="text-xs text-stone-500">{p.stock} un disponíveis</p></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-stone-100 font-serif">{p.name}</CardTitle>
+          <div className="flex justify-between items-center mt-2">
+            <p className="text-gold font-bold">R$ {p.price.toFixed(2)}</p>
+            <Badge variant="outline" className="text-[10px] border-white/10 text-stone-400">
+              {p.stock} em estoque
+            </Badge>
+          </div>
+        </CardHeader>
       </Card>
     ))}
   </div>
@@ -270,14 +301,25 @@ const CatalogPage = ({ products, onAddToCart }: any) => (
 
 const CartPage = ({ cart, setCart, onCheckout }: any) => {
   const [n, setN] = useState(''); const [p, setP] = useState('');
-  if (cart.length === 0) return <div className="pt-40 text-center">Carrinho Vazio</div>;
+  const total = cart.reduce((acc:any, i:any) => acc + i.price * i.quantity, 0);
+  if (cart.length === 0) return <div className="pt-40 text-center text-stone-500">Seu carrinho está vazio</div>;
   return (
-    <div className="pt-32 container mx-auto px-6 max-w-2xl space-y-8">
-      {cart.map((i: any) => <div key={i.id} className="p-4 bg-stone-900 rounded-xl flex justify-between"><div>{i.name}</div><div className="text-gold">R$ {i.price.toFixed(2)}</div></div>)}
+    <div className="pt-32 container mx-auto px-6 max-w-2xl space-y-8 pb-20">
+      <h2 className="text-2xl font-serif text-gold">Seu Carrinho</h2>
+      {cart.map((i: any) => (
+        <div key={i.id} className="p-4 bg-stone-900 rounded-xl flex justify-between items-center border border-white/5">
+          <div>
+            <p className="font-bold">{i.name}</p>
+            <p className="text-xs text-stone-500">R$ {i.price.toFixed(2)}</p>
+          </div>
+          <Button variant="ghost" onClick={() => setCart(cart.filter((item:any) => item.id !== i.id))}><Trash2 size={16} className="text-red-500" /></Button>
+        </div>
+      ))}
       <Card className="bg-stone-900 border-gold/20 p-6 space-y-4">
-        <Input placeholder="Nome" value={n} onChange={e => setN(e.target.value)} className="bg-black" />
-        <Input placeholder="WhatsApp" value={p} onChange={e => setP(e.target.value)} className="bg-black" />
-        <Button onClick={() => onCheckout(n, p)} className="w-full bg-gold text-black font-bold h-12">Finalizar Pedido</Button>
+        <div className="flex justify-between font-bold text-xl mb-4 text-white"><span>Total:</span><span>R$ {total.toFixed(2)}</span></div>
+        <Input placeholder="Seu Nome" value={n} onChange={e => setN(e.target.value)} className="bg-black border-white/10" />
+        <Input placeholder="WhatsApp com DDD" value={p} onChange={e => setP(e.target.value)} className="bg-black border-white/10" />
+        <Button onClick={() => onCheckout(n, p)} className="w-full bg-gold text-black font-bold h-12 rounded-xl">Finalizar no WhatsApp</Button>
       </Card>
     </div>
   );
