@@ -1,8 +1,9 @@
 {
-  "name": "react-example",
+  "name": "rabia-parfum",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "Rábia Parfum - Essências que impõem presença",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
