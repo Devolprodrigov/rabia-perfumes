@@ -76,11 +76,6 @@ interface Product {
   createdAt: any;
 }
 
-interface Category {
-  id: string;
-  name: string;
-}
-
 interface OrderItem {
   id: string;
   name: string;
@@ -201,11 +196,12 @@ const ProductCard = ({ product, onAddToCart }: { product: Product, onAddToCart: 
 
 // --- Pages ---
 
-const Catalog = ({ products, categories, onAddToCart }: { products: Product[], categories: Category[], onAddToCart: (p: Product) => void }) => {
+const Catalog = ({ products, onAddToCart }: { products: Product[], onAddToCart: (p: Product) => void }) => {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
 
-  const uniqueCategories = Array.from(new Map(categories.map(item => [item.name, item])).values());
+  // Categorias fixas conforme solicitado
+  const categories = ['Árabe', 'Importados', 'Nacionais', 'Exclusivos'];
 
   const filteredProducts = products.filter(p => {
     const matchesFilter = filter === 'all' || p.category === filter;
@@ -274,14 +270,14 @@ const Catalog = ({ products, categories, onAddToCart }: { products: Product[], c
           >
             Todos
           </Button>
-          {uniqueCategories.map(cat => (
+          {categories.map(cat => (
             <Button 
-              key={cat.id}
-              variant={filter === cat.name ? 'default' : 'outline'} 
-              onClick={() => setFilter(cat.name)}
-              className={`rounded-full px-6 text-xs uppercase tracking-widest h-9 ${filter === cat.name ? 'bg-gold-gradient text-black border-none' : 'border-gold/30 text-gold hover:bg-gold/10'}`}
+              key={cat}
+              variant={filter === cat ? 'default' : 'outline'} 
+              onClick={() => setFilter(cat)}
+              className={`rounded-full px-6 text-xs uppercase tracking-widest h-9 ${filter === cat ? 'bg-gold-gradient text-black border-none' : 'border-gold/30 text-gold hover:bg-gold/10'}`}
             >
-              {cat.name}
+              {cat}
             </Button>
           ))}
         </div>
@@ -447,9 +443,7 @@ const Cart = ({ cart, onRemove, onUpdateQty, onCheckout }: { cart: OrderItem[], 
   );
 };
 
-const AdminPanel = ({ products, categories, orders }: { products: Product[], categories: Category[], orders: Order[] }) => {
-  const [activeTab, setActiveTab] = useState('inventory');
-  
+const AdminPanel = ({ products, orders }: { products: Product[], orders: Order[] }) => {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
@@ -463,7 +457,8 @@ const AdminPanel = ({ products, categories, orders }: { products: Product[], cat
     imageUrl: ''
   });
 
-  const uniqueCategories = Array.from(new Map(categories.map(item => [item.name, item])).values());
+  // Categorias para o formulário
+  const categories = ['Árabe', 'Importados', 'Nacionais', 'Exclusivos'];
 
   const handleOpenProductModal = (product?: Product) => {
     if (product) {
@@ -483,7 +478,6 @@ const AdminPanel = ({ products, categories, orders }: { products: Product[], cat
     setIsProductModalOpen(true);
   };
 
-  // FUNÇÃO CORRIGIDA: LER DA GALERIA
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -500,6 +494,7 @@ const AdminPanel = ({ products, categories, orders }: { products: Product[], cat
   };
 
   const handleSaveProduct = async () => {
+    if (!formData.category) return toast.error("Selecione uma categoria");
     try {
       const data = {
         ...formData,
@@ -519,11 +514,6 @@ const AdminPanel = ({ products, categories, orders }: { products: Product[], cat
     } catch (error) {
       toast.error('Erro ao salvar produto.');
     }
-  };
-
-  const handleDeleteProduct = (id: string) => {
-    setProductToDelete(id);
-    setIsDeleteModalOpen(true);
   };
 
   const confirmDeleteProduct = async () => {
@@ -568,9 +558,7 @@ const AdminPanel = ({ products, categories, orders }: { products: Product[], cat
               <TableBody>
                 {products.map(product => (
                   <TableRow key={product.id} className="border-white/5 hover:bg-white/5">
-                    <TableCell>
-                      <img src={product.imageUrl} alt={product.name} className="w-12 h-12 rounded-lg object-cover border border-white/10" />
-                    </TableCell>
+                    <TableCell><img src={product.imageUrl} className="w-12 h-12 rounded-lg object-cover border border-white/10" /></TableCell>
                     <TableCell className="font-medium text-stone-200">{product.name}</TableCell>
                     <TableCell><Badge variant="outline" className="border-gold/30 text-gold">{product.category}</Badge></TableCell>
                     <TableCell className="text-stone-300">R$ {product.price.toFixed(2)}</TableCell>
@@ -578,7 +566,7 @@ const AdminPanel = ({ products, categories, orders }: { products: Product[], cat
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="icon" className="text-gold hover:bg-gold/10" onClick={() => handleOpenProductModal(product)}><Edit size={16} /></Button>
-                        <Button variant="ghost" size="icon" className="text-red-400 hover:bg-red-400/10" onClick={() => handleDeleteProduct(product.id)}><Trash2 size={16} /></Button>
+                        <Button variant="ghost" size="icon" className="text-red-400 hover:bg-red-400/10" onClick={() => {setProductToDelete(product.id); setIsDeleteModalOpen(true);}}><Trash2 size={16} /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -606,7 +594,6 @@ const AdminPanel = ({ products, categories, orders }: { products: Product[], cat
         </TabsContent>
       </Tabs>
 
-      {/* Modal Novo/Editar com Galeria */}
       <Dialog open={isProductModalOpen} onOpenChange={setIsProductModalOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-3xl bg-stone-900 border-gold/20 text-white">
           <DialogHeader><DialogTitle className="font-serif text-2xl text-gold">{editingProduct ? 'Editar' : 'Novo'} Produto</DialogTitle></DialogHeader>
@@ -624,7 +611,19 @@ const AdminPanel = ({ products, categories, orders }: { products: Product[], cat
               <Input placeholder="Preço" type="number" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="bg-white/5 border-white/10" />
               <Input placeholder="Estoque" type="number" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} className="bg-white/5 border-white/10" />
             </div>
-            <Input placeholder="Categoria" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="bg-white/5 border-white/10" />
+            
+            {/* SELEÇÃO DE CATEGORIA */}
+            <Select value={formData.category} onValueChange={(val) => setFormData({...formData, category: val})}>
+              <SelectTrigger className="bg-white/5 border-white/10 text-stone-300">
+                <SelectValue placeholder="Selecione a Categoria" />
+              </SelectTrigger>
+              <SelectContent className="bg-stone-900 border-gold/20 text-white">
+                {categories.map(c => (
+                  <SelectItem key={c} value={c} className="focus:bg-gold focus:text-black cursor-pointer">{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Textarea placeholder="Descrição" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="bg-white/5 border-white/10" />
           </div>
           <DialogFooter>
@@ -677,7 +676,6 @@ function AppContent() {
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [cart, setCart] = useState<OrderItem[]>([]);
 
@@ -693,10 +691,6 @@ function AppContent() {
 
     onSnapshot(query(collection(db, 'products'), orderBy('createdAt', 'desc')), (snapshot) => {
       setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
-    });
-
-    onSnapshot(collection(db, 'categories'), (snapshot) => {
-      setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
     });
 
     onSnapshot(query(collection(db, 'orders'), orderBy('createdAt', 'desc')), (snapshot) => {
@@ -731,21 +725,17 @@ function AppContent() {
     }));
   };
 
-  // FUNÇÃO CHEKOUT COM BAIXA DE ESTOQUE AUTOMÁTICA
   const handleCheckout = async (customerName: string, customerPhone: string) => {
     const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
     try {
-      // 1. Salva pedido
       await addDoc(collection(db, 'orders'), { customerName, customerPhone, items: cart, total, status: 'pending', createdAt: Timestamp.now() });
 
-      // 2. BAIXA ESTOQUE
       for (const item of cart) {
         await updateDoc(doc(db, 'products', item.id), {
           stock: increment(-item.quantity)
         });
       }
 
-      // 3. WhatsApp
       const itemsList = cart.map(item => `- ${item.quantity}x ${item.name}`).join('%0A');
       const message = `Olá! Novo pedido de ${customerName}.%0A%0A*Itens:*%0A${itemsList}%0A%0A*Total:* R$ ${total.toFixed(2)}`;
       setCart([]);
@@ -762,9 +752,9 @@ function AppContent() {
         
         <main>
           <Routes>
-            <Route path="/" element={<Catalog products={products} categories={categories} onAddToCart={addToCart} />} />
+            <Route path="/" element={<Catalog products={products} onAddToCart={addToCart} />} />
             <Route path="/cart" element={<Cart cart={cart} onRemove={id => setCart(prev => prev.filter(i => i.id !== id))} onUpdateQty={updateCartQty} onCheckout={handleCheckout} />} />
-            <Route path="/admin" element={isAdmin ? <AdminPanel products={products} categories={categories} orders={orders} /> : <Catalog products={products} categories={categories} onAddToCart={addToCart} />} />
+            <Route path="/admin" element={isAdmin ? <AdminPanel products={products} orders={orders} /> : <Catalog products={products} onAddToCart={addToCart} />} />
             <Route path="/about" element={
               <div className="pt-32 pb-20 container mx-auto px-6 max-w-3xl">
                 <header className="text-center mb-16">
