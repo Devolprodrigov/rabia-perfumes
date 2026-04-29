@@ -935,40 +935,49 @@ function AppContent() {
   };
 
   const handleCheckout = async (customerName: string, customerPhone: string) => {
-    const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    const orderData = {
-      customerName,
-      customerPhone,
-      items: cart,
-      total,
-      status: 'pending',
-      createdAt: Timestamp.now()
-    };
+    const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    const orderData = {
+      customerName,
+      customerPhone,
+      items: cart,
+      total,
+      status: 'pending',
+      createdAt: Timestamp.now()
+    };
 
-    // Save order to history
-    try {
-      await addDoc(collection(db, 'orders'), orderData);
-    } catch (error) {
-      toast.error('Erro ao processar pedido. Por favor, tente novamente.');
-      handleFirestoreError(error, OperationType.WRITE, 'orders');
-      return;
-    }
-    
-    // Update stock
-    for (const item of cart) {
-      const product = products.find(p => p.id === item.id);
-      if (product) {
-        try {
-          await updateDoc(doc(db, 'products', product.id), {
-            stock: Math.max(0, product.stock - item.quantity)
-          });
-        } catch (error) {
-          console.warn('Failed to update stock:', error);
-          // We don't block the checkout if stock update fails, but we log it
-        }
-      }
-    }
+    try {
+      // 1. Salva o pedido no histórico
+      await addDoc(collection(db, 'orders'), orderData);
 
+      // 2. BAIXA DE ESTOQUE AUTOMÁTICA
+      // Percorre cada item do carrinho para atualizar o Firestore
+      for (const item of cart) {
+        const productRef = doc(db, 'products', item.id);
+        await updateDoc(productRef, {
+          // O increment(-valor) subtrai a quantidade do estoque atual no banco
+          stock: increment(-item.quantity) 
+        });
+      }
+
+      // 3. Gera a mensagem para o WhatsApp
+      const itemsList = cart.map(item => `- ${item.quantity}x ${item.name} (R$ ${item.price.toFixed(2)})`).join('%0A');
+      const message = `Olá! Gostaria de finalizar minha compra na Rábia Parfum.%0A%0A*Pedido:*%0A${itemsList}%0A%0A*Total:* R$ ${total.toFixed(2)}%0A%0A*Cliente:* ${customerName}%0A*WhatsApp:* ${customerPhone}`;
+      
+      const whatsappUrl = `https://wa.me/5541984842112?text=${message}`;
+      
+      // 4. Limpa o carrinho e avisa o usuário
+      setCart([]);
+      toast.success('Pedido registrado e estoque atualizado!');
+      
+      setTimeout(() => {
+        window.open(whatsappUrl, '_blank');
+      }, 1500);
+
+    } catch (error) {
+      toast.error('Erro ao processar pedido ou atualizar estoque.');
+      handleFirestoreError(error, OperationType.WRITE, 'orders/products');
+    }
+  };
     // Generate WhatsApp message
     const itemsList = cart.map(item => `- ${item.quantity}x ${item.name} (R$ ${item.price.toFixed(2)})`).join('%0A');
     const message = `Olá! Gostaria de finalizar minha compra na Rábia Parfum.%0A%0A*Pedido:*%0A${itemsList}%0A%0A*Total:* R$ ${total.toFixed(2)}%0A%0A*Cliente:* ${customerName}%0A*WhatsApp:* ${customerPhone}`;
