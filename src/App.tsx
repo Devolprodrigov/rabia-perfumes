@@ -284,7 +284,7 @@ const Catalog = ({ products, onAddToCart }: { products: Product[], onAddToCart: 
          transition={{ delay: 0.1 }}
          className="text-stone-300 text-lg md:text-xl leading-relaxed font-light mb-10"
        >
-         Fragrâncias intensas, selecionadas em Dubai, para quem entende que presença não se pede — se impõe.
+         Fragrâncias intensas, selecionadas in Dubai, para quem entende que presença não se pede — se impõe.
        </motion.p>
        <motion.div
          initial={{ opacity: 0, y: 20 }}
@@ -365,8 +365,6 @@ const Catalog = ({ products, onAddToCart }: { products: Product[], onAddToCart: 
 };
 
 const Cart = ({ cart, onRemove, onUpdateQty, onCheckout }: { cart: OrderItem[], onRemove: (id: string) => void, onUpdateQty: (id: string, delta: number) => void, onCheckout: (name: string, phone: string) => void }) => {
- const [name, setName] = useState('');
- const [phone, setPhone] = useState('');
  const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
  return (
@@ -452,32 +450,10 @@ const Cart = ({ cart, onRemove, onUpdateQty, onCheckout }: { cart: OrderItem[], 
                  </div>
                </div>
 
-               <div className="bg-black/40 p-8 rounded-[32px] border border-white/5 space-y-6">
-                 <div className="space-y-4">
-                   <div className="space-y-2">
-                     <Label className="text-xs uppercase tracking-[0.2em] text-gold font-bold ml-1">Quem é você?</Label>
-                     <Input 
-                       placeholder="Seu nome completo" 
-                       value={name} 
-                       onChange={e => setName(e.target.value)}
-                       className="h-14 bg-stone-900/80 border-gold/20 text-white placeholder:text-stone-600 rounded-2xl focus:ring-gold text-lg px-6"
-                     />
-                   </div>
-                   <div className="space-y-2">
-                     <Label className="text-xs uppercase tracking-[0.2em] text-gold font-bold ml-1">WhatsApp para Contato</Label>
-                     <Input 
-                       placeholder="(00) 00000-0000" 
-                       value={phone} 
-                       onChange={e => setPhone(e.target.value)}
-                       className="h-14 bg-stone-900/80 border-gold/20 text-white placeholder:text-stone-600 rounded-2xl focus:ring-gold text-lg px-6"
-                     />
-                   </div>
-                 </div>
-                 
+               <div className="bg-black/40 p-8 rounded-[32px] border border-white/5 space-y-6 flex flex-col justify-center min-h-[200px]">
                  <Button 
-                   onClick={() => onCheckout(name, phone)}
+                   onClick={() => onCheckout('', '')}
                    className="w-full bg-gold-gradient text-black font-black h-16 rounded-2xl text-xs sm:text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-2xl shadow-gold/20 group"
-                   disabled={!name || !phone}
                  >
                    FINALIZAR COMPRA NO WHATSAPP
                    <ArrowRight size={18} className="ml-3 group-hover:translate-x-2 transition-transform" />
@@ -507,9 +483,6 @@ const AdminPanel = ({ products, orders }: { products: Product[], orders: Order[]
    stock: '',
    imageUrl: ''
  });
-
- // Categorias para o formulário
- // const categories = ['Árabe', 'Importados', 'Nacionais', 'Exclusivos']; // REMOVIDO POR DUPLICAÇÃO
 
  const handleOpenProductModal = (product?: Product) => {
    if (product) {
@@ -750,15 +723,19 @@ function AppContent() {
    }));
  };
 
- const handleCheckout = async (customerName: string, customerPhone: string) => {
-   if (!user) { // ACRESCENTADO: OBRIGA LOGIN
+ const handleCheckout = async () => {
+   if (!user) { // OBRIGA LOGIN
      toast.error('Por favor, faça login para finalizar o pedido.');
      signInWithPopup(auth, googleProvider);
      return;
    }
+   
+   // Puxando dados do usuário logado de forma automática
+   const customerName = user.displayName || 'Cliente Logado';
+   const customerPhone = 'Não Informado'; 
+
    const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
    try {
-     // ACRESCENTADO: SALVA EMAIL DO CLIENTE
      await addDoc(collection(db, 'orders'), { 
        customerName, 
        customerPhone, 
